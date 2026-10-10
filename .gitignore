@@ -1,0 +1,28 @@
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# JavaScript
+**/node_modules/
+**/dist/
+**/.vite/
+npm-debug.log*
+
+# Python
+**/__pycache__/
+*.py[cod]
+**/.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+venv-project/
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
