@@ -1,75 +1,69 @@
-<div align="center">
-  <h1><img src="https://project-management-gs.vercel.app/favicon.ico" width="20" height="20" alt="project-management Favicon">
-   project-management</h1>
-  <p>
-    An open-source project management platform built with ReactJS and Tailwind CSS.
-  </p>
-  <p>
-    <a href="https://github.com/GreatStackDev/project-management/blob/main/LICENSE.md"><img src="https://img.shields.io/github/license/GreatStackDev/project-management?style=for-the-badge" alt="License"></a>
-    <a href="https://github.com/GreatStackDev/project-management/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge" alt="PRs Welcome"></a>
-    <a href="https://github.com/GreatStackDev/project-management/issues"><img src="https://img.shields.io/github/issues/GreatStackDev/project-management?style=for-the-badge" alt="GitHub issues"></a>
-  </p>
-</div>
+# Team Task Manager
 
----
+The repository is organized as a small monorepo:
 
-## 📖 Table of Contents
-
-- [✨ Features](#-features)
-- [🛠️ Tech Stack](#-tech-stack)
-- [🚀 Getting Started](#-getting-started)
-- [🤝 Contributing](#-contributing)
-- [📜 License](#-license)
-
----
-
-## 📝 Features <a name="-features"></a>
-
-- **Multiple Workspaces:** Allow multiple workspaces to be created, each with its own set of projects, tasks, and members.
-- **Project Management:** Manage projects, tasks, and team members.
-- **Analytics:** View project analytics, including progress, completion rate, and team size.
-- **Task Management:** Assign tasks to team members, set due dates, and track task status.
-- **User Management:** Invite team members, manage user roles, and view user activity.
-
-## 🛠️ Tech Stack <a name="-tech-stack"></a>
-
-- **Framework:** ReactJS
-- **Styling:** Tailwind CSS
-- **UI Components:** Lucide React for icons
-- **State Management:** Redux Toolkit
-
-## 🚀 Getting Started <a name="-getting-started"></a>
-
-First, install the dependencies. We recommend using `npm` for this project.
-
-```bash
-npm install
+```text
+frontend/                 React + Vite application
+backend/                  FastAPI application and Python dependencies
+database/                 Database references and migration files
+  migrations/             Database migration scripts
+  reference/               Existing schema reference files
 ```
 
-Then, run the development server:
+## Run the frontend
+
+From the repository root:
 
 ```bash
+npm install --prefix frontend
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) with your browser to see the result.
+## Run the backend
 
-You can start editing the page by modifying `src/App.jsx`. The page auto-updates as you edit the file.
+Create and activate a virtual environment, install the backend requirements, then run:
 
----
+```bash
+python -m pip install -r backend/requirements.txt
+npm run dev:backend
+```
 
-## 🤝 Contributing <a name="-contributing"></a>
+The backend health endpoint is `http://localhost:8000/api/health`. The database
+health endpoint is `http://localhost:8000/api/health/db`, and the interactive API
+reference is `http://localhost:8000/docs`.
 
-We welcome contributions! Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for more details on how to get started.
+The frontend reads and writes workspace, member, project, task, and task-comment
+data through the FastAPI service. Existing browser data has to be migrated once
+before account authentication is enabled. Set
+`VITE_API_URL` in `frontend/.env` only if the backend API uses a different URL;
+this variable must never contain database credentials.
 
----
+Database credentials belong in `backend/.env`, which is ignored by Git. Use
+`backend/.env.example` as a template. Never put database credentials in Vite
+variables or commit a real `.env` file.
 
-## 📜 License <a name="-license"></a>
+## Accounts and workspace roles
 
-This project is licensed under the MIT License. See the [LICENSE.md](./LICENSE.md) file for details.
+Use the sign-in screen to register a new account. To activate an existing
+migrated profile, set its password locally from the `backend/` directory with
+`python -m app.cli set-password --email user@example.com`; the command prompts
+for the password and does not place it on the shell command line. The bearer
+token identifies the signed-in user; the demo profile switcher is removed.
+Passwords are stored as scrypt hashes and access tokens expire after
+`ACCESS_TOKEN_MINUTES`. Set `AUTH_SECRET_KEY` to a long random value before
+exposing the app outside local development.
+
+Workspace admins can manage workspace settings, projects, members, invitations,
+and task assignments. Members can view workspace data, comment, and update
+tasks assigned to their account. The API checks membership and role on every
+request, regardless of the controls shown in the UI.
+
+Admins send seven-day invitations from **Team → Invite Member**. To deliver
+them by email, set the `SMTP_*` values and `FRONTEND_BASE_URL` in `backend/.env`;
+see `backend/.env.example` for the complete list. The sender address must be
+authorized by the SMTP provider. Keep `SMTP_PASSWORD` private (for Gmail, use
+an app password if the account requires one), then restart the backend. If SMTP
+is not configured or delivery fails, the app keeps the invitation valid and
+provides a copyable link as a fallback. Invitees set their name and password
+through the link. Workspace changes notify connected browsers over an
+authenticated WebSocket, which then reloads authorized data from the API.
