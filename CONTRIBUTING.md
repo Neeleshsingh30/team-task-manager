@@ -83,3 +83,5 @@ Here are some areas where you can contribute to improve and expand the Project M
 - Enhance **smooth animations** for modals, page transitions, and task movements
 - Implement **interactive filters and search bars**
 - Add **tooltips, popovers, and hover effects** for better UX
+
+---

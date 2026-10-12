@@ -18,6 +18,9 @@ const AddProjectMember = ({ isDialogOpen, setIsDialogOpen }) => {
 
     const project = currentWorkspace?.projects.find((p) => p.id === id);
     const projectMembersEmails = project?.members?.map((member) => member.user.email) || [];
+    const availableMembers = (currentWorkspace?.members || []).filter(
+        (member) => member.user?.email && !projectMembersEmails.includes(member.user.email)
+    );
 
     const [email, setEmail] = useState('');
     const [isAdding, setIsAdding] = useState(false);
@@ -85,13 +88,16 @@ const AddProjectMember = ({ isDialogOpen, setIsDialogOpen }) => {
                             {/* List All non project members from current workspace */}
                             <select value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10 mt-1 w-full rounded border border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-200 text-sm placeholder-zinc-400 dark:placeholder-zinc-500 py-2 focus:outline-none focus:border-blue-500" required >
                                 <option value="">Select a member</option>
-                                {currentWorkspace?.members
-                                    .filter((member) => !projectMembersEmails.includes(member.user.email))
-                                    .map((member) => (
+                                {availableMembers.map((member) => (
                                         <option key={member.user.id} value={member.user.email}> {member.user.email} </option>
                                     ))}
                             </select>
                         </div>
+                        {availableMembers.length === 0 && (
+                            <p className="text-sm text-zinc-600 dark:text-zinc-400" role="status">
+                                All workspace members are already assigned to this project.
+                            </p>
+                        )}
                     </div>
 
                     {/* Footer */}
@@ -99,7 +105,7 @@ const AddProjectMember = ({ isDialogOpen, setIsDialogOpen }) => {
                         <button type="button" onClick={() => setIsDialogOpen(false)} className="px-5 py-2 text-sm rounded border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition" >
                             Cancel
                         </button>
-                        <button type="submit" disabled={isAdding || !currentWorkspace} className="px-5 py-2 text-sm rounded bg-gradient-to-br from-blue-500 to-blue-600 hover:opacity-90 text-white disabled:opacity-50 transition" >
+                        <button type="submit" disabled={isAdding || !currentWorkspace || !availableMembers.length} className="px-5 py-2 text-sm rounded bg-gradient-to-br from-blue-500 to-blue-600 hover:opacity-90 text-white disabled:opacity-50 transition" >
                             {isAdding ? "Adding..." : "Add Member"}
                         </button>
                     </div>
