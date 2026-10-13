@@ -6,5 +6,8 @@
     "build": "npm --prefix frontend run build",
     "lint": "npm --prefix frontend run lint",
     "dev:backend": "python -m uvicorn app.main:app --app-dir backend --reload"
+  },
+  "dependencies": {
+    "supabase": "^2.120.0"
   }
 }
