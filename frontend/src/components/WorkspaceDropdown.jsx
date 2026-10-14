@@ -3,7 +3,7 @@ import { ChevronDown, Check, Plus, X, Pencil, Trash2 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { addWorkspace, deleteWorkspace, selectCurrentUser, setCurrentWorkspace, updateWorkspace } from "../features/workspaceSlice";
 import { useNavigate } from "react-router-dom";
-import { assets } from "../assets/assets";
+import Avatar from "./Avatar";
 import toast from "react-hot-toast";
 
 function WorkspaceDropdown() {
@@ -16,6 +16,7 @@ function WorkspaceDropdown() {
     const [editingWorkspace, setEditingWorkspace] = useState(null);
     const [workspaceName, setWorkspaceName] = useState("");
     const [workspaceDescription, setWorkspaceDescription] = useState("");
+    const [workspaceImageUrl, setWorkspaceImageUrl] = useState("");
     const dropdownRef = useRef(null);
 
     const dispatch = useDispatch();
@@ -37,6 +38,7 @@ function WorkspaceDropdown() {
                 ...editingWorkspace,
                 name,
                 description: workspaceDescription.trim() || null,
+                image_url: workspaceImageUrl.trim(),
                 updatedAt: new Date().toISOString(),
             }));
             setIsCreateOpen(false);
@@ -63,7 +65,7 @@ function WorkspaceDropdown() {
             owner,
             createdAt: now,
             updatedAt: now,
-            image_url: assets.workspace_img_default,
+            image_url: workspaceImageUrl.trim(),
             members: [{
                 id: crypto.randomUUID(),
                 userId: owner.id,
@@ -78,6 +80,7 @@ function WorkspaceDropdown() {
         dispatch(addWorkspace(workspace));
         setWorkspaceName("");
         setWorkspaceDescription("");
+        setWorkspaceImageUrl("");
         setIsCreateOpen(false);
         setIsOpen(false);
         navigate("/");
@@ -88,6 +91,7 @@ function WorkspaceDropdown() {
         setEditingWorkspace(null);
         setWorkspaceName("");
         setWorkspaceDescription("");
+        setWorkspaceImageUrl("");
         setIsOpen(false);
         setIsCreateOpen(true);
     };
@@ -96,6 +100,7 @@ function WorkspaceDropdown() {
         setEditingWorkspace(workspace);
         setWorkspaceName(workspace.name || "");
         setWorkspaceDescription(workspace.description || "");
+        setWorkspaceImageUrl(workspace.image_url || "");
         setIsOpen(false);
         setIsCreateOpen(true);
     };
@@ -132,7 +137,7 @@ function WorkspaceDropdown() {
         <div className="relative m-4" ref={dropdownRef}>
             <button onClick={() => setIsOpen(prev => !prev)} className="w-full flex items-center justify-between p-3 h-auto text-left rounded hover:bg-gray-100 dark:hover:bg-zinc-800" >
                 <div className="flex items-center gap-3">
-                    <img src={currentWorkspace?.image_url} alt={currentWorkspace?.name} className="w-8 h-8 rounded shadow" />
+                    <Avatar src={currentWorkspace?.image_url} name={currentWorkspace?.name} className="size-8 rounded shadow" />
                     <div className="min-w-0 flex-1">
                         <p className="font-semibold text-gray-800 dark:text-white text-sm truncate">
                             {currentWorkspace?.name || "Select Workspace"}
@@ -154,7 +159,7 @@ function WorkspaceDropdown() {
                         {workspaces.map((ws) => (
                             <div key={ws.id} className="flex items-center gap-1 rounded hover:bg-gray-100 dark:hover:bg-zinc-800">
                                 <button type="button" onClick={() => onSelectWorkspace(ws.id)} className="min-w-0 flex-1 text-left flex items-center gap-3 p-2 cursor-pointer rounded" >
-                                    <img src={ws.image_url} alt={ws.name} className="w-6 h-6 rounded" />
+                                    <Avatar src={ws.image_url} name={ws.name} className="size-6 rounded" />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{ws.name}</p>
                                         <p className="text-xs text-gray-500 dark:text-zinc-400 truncate">{ws.members?.length || 0} members</p>
@@ -193,6 +198,11 @@ function WorkspaceDropdown() {
                         <label className="mb-5 block text-sm">
                             Description <span className="text-zinc-500">(optional)</span>
                             <textarea maxLength={240} value={workspaceDescription} onChange={(event) => setWorkspaceDescription(event.target.value)} placeholder="What is this workspace for?" className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900" />
+                        </label>
+                        <label className="mb-5 block text-sm">
+                            Workspace image URL <span className="text-zinc-500">(optional)</span>
+                            <input type="url" value={workspaceImageUrl} onChange={(event) => setWorkspaceImageUrl(event.target.value)} placeholder="https://example.com/workspace.png" className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900" />
+                            <span className="mt-1 block text-xs text-zinc-500">Use a direct, publicly accessible image URL. Leave blank to show the workspace initial.</span>
                         </label>
                         <div className="flex justify-end gap-3">
                             <button type="button" onClick={() => { setIsCreateOpen(false); setEditingWorkspace(null); }} className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700">Cancel</button>

@@ -157,8 +157,16 @@ async def workspace_events(websocket: WebSocket, workspace_id: str) -> None:
 def _public_user(row: Any) -> dict[str, Any]:
     data = dict(row._mapping)
     data.pop("password_hash", None)
-    data["image"] = data.get("profile_image") or ""
+    data["image"] = data.get("profile_image") or data.get("image") or ""
     return data
+
+
+def _user_image_column(users: Table) -> str | None:
+    if "profile_image" in users.c:
+        return "profile_image"
+    if "image" in users.c:
+        return "image"
+    return None
 
 
 def current_user(
@@ -281,8 +289,9 @@ def register(payload: dict[str, Any], db: Session = Depends(get_db)) -> dict[str
         raise HTTPException(status_code=409, detail="An account with this email already exists. Sign in or accept a workspace invitation")
     user_id = uuid.uuid4()
     values = {"id": user_id, "name": name, "email": email, "password_hash": _password_hash(password), "is_active": True}
-    if "profile_image" in users.c:
-        values["profile_image"] = ""
+    image_column = _user_image_column(users)
+    if image_column:
+        values[image_column] = ""
     db.execute(insert(users).values(**values))
     db.commit()
     user = db.execute(select(users).where(users.c.id == user_id)).first()
@@ -314,7 +323,7 @@ def update_profile(payload: dict[str, Any], user: Any = Depends(current_user), d
     user_id = user._mapping["id"]
     name = str(payload.get("name") or "").strip()
     email = str(payload.get("email") or "").strip().lower()
-    profile_image = payload.get("profileImage", user._mapping.get("profile_image") or "")
+    profile_image = payload.get("profileImage", user._mapping.get("profile_image") or user._mapping.get("image") or "")
     if not name or len(name) > 100:
         raise HTTPException(status_code=422, detail="Name must contain 1 to 100 characters")
     if not email or len(email) > 255 or "@" not in email:
@@ -336,8 +345,9 @@ def update_profile(payload: dict[str, Any], user: Any = Depends(current_user), d
             raise HTTPException(status_code=409, detail="An account with this email already exists")
 
     values = {"name": name, "email": email}
-    if "profile_image" in users.c:
-        values["profile_image"] = profile_image
+    image_column = _user_image_column(users)
+    if image_column:
+        values[image_column] = profile_image
     if "updated_at" in users.c:
         values["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
     db.execute(update(users).where(users.c.id == user_id).values(**values))
@@ -487,8 +497,9 @@ def accept_invitation(payload: dict[str, Any], db: Session = Depends(get_db)) ->
     else:
         user_id = uuid.uuid4()
         values = {"id": user_id, "name": name, "email": email, "password_hash": _password_hash(password), "is_active": True}
-        if "profile_image" in users.c:
-            values["profile_image"] = ""
+        image_column = _user_image_column(users)
+        if image_column:
+            values[image_column] = ""
         db.execute(insert(users).values(**values))
     membership = db.execute(select(tables["workspace_members"]).where(and_(
         tables["workspace_members"].c.workspace_id == invite._mapping["workspace_id"],

@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
-import { ArrowRight, Building2, Check, FolderKanban, Moon, Settings as SettingsIcon, Shield, Sun, Users } from "lucide-react";
+import { ArrowRight, Check, FolderKanban, Moon, Settings as SettingsIcon, Shield, Sun, Users } from "lucide-react";
 import { getWorkspaces, saveWorkspace } from "../app/api";
 import { selectCurrentRole, setWorkspaces } from "../features/workspaceSlice";
 import { toggleTheme } from "../features/themeSlice";
+import Avatar from "../components/Avatar";
 
 const cardClass = "rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-7";
 const fieldClass = "mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:focus:ring-blue-950";
@@ -18,11 +19,11 @@ export default function Settings() {
     const theme = useSelector((state) => state.theme.theme);
     const isAdmin = role === "ADMIN";
     const [saving, setSaving] = useState(false);
-    const [details, setDetails] = useState({ name: "", description: "" });
+    const [details, setDetails] = useState({ name: "", description: "", imageUrl: "" });
 
     useEffect(() => {
-        setDetails({ name: workspace?.name || "", description: workspace?.description || "" });
-    }, [workspace?.id, workspace?.name, workspace?.description]);
+        setDetails({ name: workspace?.name || "", description: workspace?.description || "", imageUrl: workspace?.image_url || "" });
+    }, [workspace?.id, workspace?.name, workspace?.description, workspace?.image_url]);
 
     const projects = workspace?.projects || [];
     const memberCount = workspace?.members?.length || 0;
@@ -33,7 +34,7 @@ export default function Settings() {
         if (!workspace || !isAdmin) return;
         setSaving(true);
         try {
-            await saveWorkspace({ ...workspace, name: details.name.trim(), description: details.description.trim() });
+            await saveWorkspace({ ...workspace, name: details.name.trim(), description: details.description.trim(), image_url: details.imageUrl.trim() });
             dispatch(setWorkspaces(await getWorkspaces()));
             toast.success("Workspace settings saved");
         } catch (error) {
@@ -68,7 +69,7 @@ export default function Settings() {
 
             <section className={cardClass}>
                 <div className="mb-6 flex items-center gap-3">
-                    <span className="rounded-xl bg-blue-50 p-2.5 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300"><Building2 size={19} /></span>
+                    <Avatar src={workspace?.image_url} name={workspace?.name} className="size-10 rounded-xl" />
                     <div className="min-w-0"><h2 className="font-semibold text-gray-900 dark:text-white">Active workspace</h2><p className="text-sm text-gray-500 dark:text-zinc-400">Settings for {workspace?.name || "your selected workspace"}.</p></div>
                     <span className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600 dark:bg-zinc-800 dark:text-zinc-300"><Shield size={13} /> {role}</span>
                 </div>
@@ -76,6 +77,7 @@ export default function Settings() {
                     <form onSubmit={saveDetails} className="space-y-4">
                         <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300">Workspace name<input required maxLength={150} disabled={!isAdmin} value={details.name} onChange={(event) => setDetails({ ...details, name: event.target.value })} className={`${fieldClass} disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 dark:disabled:bg-zinc-800`} /></label>
                         <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300">Description<textarea maxLength={2000} rows={3} disabled={!isAdmin} value={details.description} onChange={(event) => setDetails({ ...details, description: event.target.value })} className={`${fieldClass} resize-y disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 dark:disabled:bg-zinc-800`} placeholder="What does this workspace manage?" /></label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300">Workspace image URL<input type="url" disabled={!isAdmin} value={details.imageUrl} onChange={(event) => setDetails({ ...details, imageUrl: event.target.value })} className={`${fieldClass} disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 dark:disabled:bg-zinc-800`} placeholder="https://example.com/workspace.png" /><span className="mt-1 block text-xs font-normal text-gray-500 dark:text-zinc-400">Use a direct, publicly accessible image URL. Leave blank to show the workspace initial.</span></label>
                         {isAdmin ? <div className="flex justify-end"><button disabled={saving} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60">{saving ? "Saving…" : "Save workspace"}</button></div> : <p className="text-xs text-gray-500 dark:text-zinc-400">Only workspace admins can edit workspace details. Ask an admin if these details need to change.</p>}
                     </form>
                     <div className="mt-6 grid gap-3 border-t border-gray-100 pt-5 dark:border-zinc-800 sm:grid-cols-3">

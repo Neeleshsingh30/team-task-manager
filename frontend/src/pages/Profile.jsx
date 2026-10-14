@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import { ArrowLeft, KeyRound, Mail, Save, ShieldCheck, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import { changePassword, getWorkspaces, updateProfile } from "../app/api";
 import { selectCurrentRole, selectCurrentUser, setAuthenticatedUser, setWorkspaces } from "../features/workspaceSlice";
+import Avatar from "../components/Avatar";
 
 const fieldClass = "mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:focus:ring-blue-950";
 const cardClass = "rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-7";
@@ -23,7 +24,6 @@ export default function Profile() {
         setProfile({ name: user?.name || "", email: user?.email || "", profileImage: user?.image || "", currentPassword: "" });
     }, [user?.id, user?.name, user?.email, user?.image]);
 
-    const initials = useMemo(() => (user?.name || user?.email || "U").split(/[\s@]+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase(), [user?.name, user?.email]);
     const emailChanged = profile.email.trim().toLowerCase() !== (user?.email || "").toLowerCase();
 
     const saveProfile = async (event) => {
@@ -33,7 +33,7 @@ export default function Profile() {
             const updated = await updateProfile({
                 name: profile.name,
                 email: profile.email,
-                profileImage: profile.profileImage,
+                profileImage: profile.profileImage.trim(),
                 ...(emailChanged ? { currentPassword: profile.currentPassword } : {}),
             });
             dispatch(setAuthenticatedUser(updated));
@@ -77,7 +77,7 @@ export default function Profile() {
             </header>
 
             <section className="flex flex-col gap-5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white shadow-sm sm:flex-row sm:items-center">
-                {profile.profileImage ? <img src={profile.profileImage} alt="Profile" className="size-16 rounded-2xl border-2 border-white/30 object-cover" /> : <span className="flex size-16 items-center justify-center rounded-2xl bg-white/15 text-xl font-semibold">{initials}</span>}
+                <Avatar src={profile.profileImage} name={profile.name} email={profile.email} className="size-16 rounded-2xl border-2 border-white/30 text-xl" />
                 <div className="min-w-0 flex-1">
                     <h2 className="truncate text-xl font-semibold">{profile.name || "Your profile"}</h2>
                     <p className="mt-1 truncate text-sm text-blue-100">{profile.email || "Add an email address"}</p>
@@ -93,7 +93,7 @@ export default function Profile() {
                 <form onSubmit={saveProfile} className="grid gap-5 md:grid-cols-2">
                     <label className="text-sm font-medium text-gray-700 dark:text-zinc-300">Full name<input required maxLength={100} value={profile.name} onChange={(event) => setProfile({ ...profile, name: event.target.value })} className={fieldClass} placeholder="Your name" /></label>
                     <label className="text-sm font-medium text-gray-700 dark:text-zinc-300">Email address<input required type="email" maxLength={255} value={profile.email} onChange={(event) => setProfile({ ...profile, email: event.target.value })} className={fieldClass} placeholder="you@example.com" /><span className="mt-1 block text-xs font-normal text-gray-500 dark:text-zinc-400">Changing your email requires your current password.</span></label>
-                    <label className="text-sm font-medium text-gray-700 dark:text-zinc-300 md:col-span-2">Profile image URL<input type="url" value={profile.profileImage.startsWith("data:image/") ? "" : profile.profileImage} onChange={(event) => setProfile({ ...profile, profileImage: event.target.value })} className={fieldClass} placeholder="https://example.com/photo.jpg" /><span className="mt-1 block text-xs font-normal text-gray-500 dark:text-zinc-400">Optional. Leave blank to use your initials.</span></label>
+                    <label className="text-sm font-medium text-gray-700 dark:text-zinc-300 md:col-span-2">Profile image URL<input type="url" value={profile.profileImage.startsWith("data:image/") ? "" : profile.profileImage} onChange={(event) => setProfile({ ...profile, profileImage: event.target.value })} className={fieldClass} placeholder="https://example.com/photo.jpg" /><span className="mt-1 block text-xs font-normal text-gray-500 dark:text-zinc-400">Use a direct, publicly accessible image URL. Leave it blank to show the first letter of your name.</span></label>
                     {emailChanged && <label className="text-sm font-medium text-gray-700 dark:text-zinc-300 md:col-span-2">Current password<input required type="password" autoComplete="current-password" value={profile.currentPassword} onChange={(event) => setProfile({ ...profile, currentPassword: event.target.value })} className={fieldClass} /></label>}
                     <div className="flex justify-end md:col-span-2"><button disabled={savingProfile} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"><Save size={16} />{savingProfile ? "Saving…" : "Save profile"}</button></div>
                 </form>

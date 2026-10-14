@@ -4,9 +4,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CalendarIcon, MessageCircle, PenIcon } from "lucide-react";
-import { assets } from "../assets/assets";
 import { getTaskComments, postTaskComment } from "../app/api";
 import { selectCurrentUser, setTaskComments } from "../features/workspaceSlice";
+import Avatar from "../components/Avatar";
 
 const TaskDetails = () => {
 
@@ -110,7 +110,7 @@ const TaskDetails = () => {
                                 {comments.map((comment) => (
                                     <div key={comment.id} className={`sm:max-w-4/5 dark:bg-gradient-to-br dark:from-zinc-800 dark:to-zinc-900 border border-gray-300 dark:border-zinc-700 p-3 rounded-md ${comment.user?.id === user?.id ? "ml-auto" : "mr-auto"}`} >
                                         <div className="flex items-center gap-2 mb-1 text-sm text-gray-500 dark:text-zinc-400">
-                                            <img src={comment.user?.image || assets.profile_img_a} alt="avatar" className="size-5 rounded-full" />
+                                            <Avatar src={comment.user?.image} name={comment.user?.name} className="size-5 rounded-full text-[8px]" />
                                             <span className="font-medium text-gray-900 dark:text-white">{comment.user?.name || "Team member"}</span>
                                             <span className="text-xs text-gray-400 dark:text-zinc-600">
                                                 • {format(new Date(comment.createdAt), "dd MMM yyyy, HH:mm")}
@@ -168,7 +168,7 @@ const TaskDetails = () => {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 dark:text-zinc-300">
                         <div className="flex items-center gap-2">
-                            <img src={task.assignee?.image} className="size-5 rounded-full" alt="avatar" />
+                            <Avatar src={task.assignee?.image} name={task.assignee?.name || "Unassigned"} className="size-5 rounded-full text-[8px]" />
                             {task.assignee?.name || "Unassigned"}
                         </div>
                         <div className="flex items-center gap-2">

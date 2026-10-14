@@ -127,14 +127,18 @@ def _save_user(db: Session, user: dict[str, Any], id_map: dict[tuple[str, str], 
             id_map[("user", str(source_id))] = user_id
     else:
         email = f"{user_id}@local.invalid"
-    _upsert(db, "users", {
+    user_values = {
         "id": user_id,
         "name": str(user.get("name") or email.split("@", 1)[0])[:100],
         "email": email,
         "password_hash": "!pending-invitation-no-auth-configured!",
-        "profile_image": user.get("image") or user.get("profile_image") or "",
         "is_active": True,
-    })
+    }
+    users = _table("users")
+    image_column = "profile_image" if "profile_image" in users.c else "image" if "image" in users.c else None
+    if image_column:
+        user_values[image_column] = user.get("image") or user.get("profile_image") or ""
+    _upsert(db, "users", user_values)
     return user_id
 
 
@@ -390,7 +394,7 @@ def _row(row: Any, table_name: str | None = None) -> dict[str, Any]:
     if "updated_at" in item:
         item["updatedAt"] = item["updated_at"]
     if table_name == "users":
-        item["image"] = item.get("profile_image") or ""
+        item["image"] = item.get("profile_image") or item.get("image") or ""
     if table_name == "workspaces":
         item["ownerId"] = item.get("owner_id")
         item["image_url"] = item.get("image_url") or ""
@@ -614,10 +618,17 @@ def add_workspace_member(workspace_id: str, payload: dict[str, Any], db: Session
         user_row = db.execute(select(_table("users")).where(_table("users").c.email == email)).first()
         if user_row is None:
             user_id = uuid.uuid4()
-            db.execute(insert(_table("users")).values(
-                id=user_id, name=user.get("name") or email.split("@")[0], email=email,
-                password_hash="!no-password-auth-configured!", profile_image=user.get("image") or "",
-            ))
+            user_values = {
+                "id": user_id,
+                "name": user.get("name") or email.split("@")[0],
+                "email": email,
+                "password_hash": "!no-password-auth-configured!",
+            }
+            users = _table("users")
+            image_column = "profile_image" if "profile_image" in users.c else "image" if "image" in users.c else None
+            if image_column:
+                user_values[image_column] = user.get("image") or ""
+            db.execute(insert(users).values(**user_values))
         else:
             user_id = user_row._mapping["id"]
     elif user_row is not None:

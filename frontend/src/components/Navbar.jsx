@@ -6,6 +6,7 @@ import { selectCurrentUser } from '../features/workspaceSlice'
 import { clearAccessToken } from '../app/api'
 import { Link } from 'react-router-dom'
 import NotificationBell from './NotificationBell'
+import Avatar from './Avatar'
 
 const Navbar = ({ setIsSidebarOpen }) => {
 
@@ -16,9 +17,7 @@ const Navbar = ({ setIsSidebarOpen }) => {
     const currentRole = currentWorkspace
         ? currentWorkspace.members?.find((member) => member.userId === currentUser?.id)?.role || "MEMBER"
         : "No workspace";
-    const initials = currentUser?.name?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
-        || currentUser?.email?.[0]?.toUpperCase()
-        || '?';
+    
 
     return (
         <div className="w-full bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 px-6 xl:px-16 py-3 flex-shrink-0">
@@ -57,9 +56,7 @@ const Navbar = ({ setIsSidebarOpen }) => {
 
                     <div className="flex items-center gap-2" title={`${currentUser?.email || ""} · ${currentRole}`}>
                         <Link to="/profile" className="flex items-center gap-2 rounded-lg p-1 transition hover:bg-gray-50 dark:hover:bg-zinc-800" aria-label="Open profile">
-                        {currentUser?.image
-                            ? <img src={currentUser.image} alt="" className="size-8 rounded-full" />
-                            : <span className="flex size-8 items-center justify-center rounded-full bg-blue-900 font-semibold text-white">{initials}</span>}
+                        <Avatar src={currentUser?.image} name={currentUser?.name} email={currentUser?.email} className="size-8 rounded-full" />
                         <span className="hidden max-w-36 truncate text-sm sm:block">{currentUser?.name || currentUser?.email || "Account"}<span className="block text-xs text-gray-500">{currentRole}</span></span>
                         </Link>
                         <button type="button" onClick={() => { clearAccessToken(); window.dispatchEvent(new CustomEvent("app:auth-required")); }} aria-label="Sign out" title="Sign out" className="rounded p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800"><LogOut size={17} /></button>
