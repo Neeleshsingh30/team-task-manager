@@ -12,6 +12,17 @@ app = FastAPI(
     title="Team Task Manager API",
     version="0.1.0",
 )
+
+
+@app.get("/")
+def root() -> dict[str, str]:
+    return {
+        "message": "Team Task Manager API is running",
+        "docs": "/docs",
+        "health": "/api/health",
+    }
+
+
 app.include_router(api_router, prefix="/api")
 
 
