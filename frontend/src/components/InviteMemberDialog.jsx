@@ -10,6 +10,7 @@ const InviteMemberDialog = ({ isDialogOpen, setIsDialogOpen }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [inviteUrl, setInviteUrl] = useState("");
     const [delivery, setDelivery] = useState("");
+    const [deliveryMessage, setDeliveryMessage] = useState("");
     const inviteLinkInput = useRef(null);
     const [formData, setFormData] = useState({
         email: "",
@@ -22,21 +23,23 @@ const InviteMemberDialog = ({ isDialogOpen, setIsDialogOpen }) => {
         const email = formData.email.trim().toLowerCase();
         setIsSubmitting(true);
         setDelivery("");
+        setDeliveryMessage("");
         try {
             const invite = await createInvitation(currentWorkspace.id, email, formData.role === "org:admin" ? "ADMIN" : "MEMBER");
             const link = invite.inviteUrl || `${window.location.origin}/?invite=${encodeURIComponent(invite.inviteToken)}`;
             setInviteUrl(link);
             setDelivery(invite.delivery);
+            setDeliveryMessage(invite.deliveryError || invite.deliveryHint || "");
             try {
                 if (!navigator.clipboard?.writeText) throw new Error("Clipboard access is unavailable");
                 await navigator.clipboard?.writeText(link);
                 if (invite.delivery === "email") toast.success(`Invitation email sent to ${email}; backup link copied`);
-                else if (invite.delivery === "email_failed") toast.error("Email could not be sent; invitation link copied as a fallback");
-                else toast.success("SMTP is not configured yet; invitation link copied");
+                else if (invite.delivery === "email_failed") toast.error(invite.deliveryError ? `Email failed: ${invite.deliveryError}` : "Email could not be sent; invitation link copied as a fallback");
+                else toast.success("Email is not configured on the server; invitation link copied");
             } catch {
                 if (invite.delivery === "email") toast.success(`Invitation email sent to ${email}. Copy the backup link below if needed.`);
-                else if (invite.delivery === "email_failed") toast.error("Email could not be sent. Copy the invitation link below.");
-                else toast.success("SMTP is not configured yet. Copy the invitation link below.");
+                else if (invite.delivery === "email_failed") toast.error(invite.deliveryError ? `Email failed: ${invite.deliveryError}` : "Email could not be sent. Copy the invitation link below.");
+                else toast.success("Email is not configured on the server. Copy the invitation link below.");
             }
         } catch (error) {
             toast.error(error.message || "Could not add member");
@@ -73,7 +76,7 @@ const InviteMemberDialog = ({ isDialogOpen, setIsDialogOpen }) => {
                     )}
                 </div>
 
-                {inviteUrl && <div className="mb-4 rounded bg-emerald-50 p-3 text-sm dark:bg-emerald-950"><p className="mb-2">{delivery === "email" ? `Invitation email sent to ${formData.email}. Backup link (expires in 7 days):` : delivery === "email_failed" ? `Email delivery failed. Share this invitation link (expires in 7 days):` : `Email is not configured. Share this invitation link (expires in 7 days):`}</p><div className="flex gap-2"><input ref={inviteLinkInput} readOnly value={inviteUrl} className="min-w-0 flex-1 rounded border bg-white px-2 py-1 text-xs text-zinc-800" onFocus={(event) => event.target.select()} /><button type="button" onClick={copyInviteLink} className="inline-flex shrink-0 items-center gap-1 rounded bg-white px-2 py-1 text-xs font-medium text-zinc-800 ring-1 ring-zinc-300 hover:bg-zinc-100"><Copy size={13} />Copy link</button></div></div>}
+                {inviteUrl && <div className="mb-4 rounded bg-emerald-50 p-3 text-sm dark:bg-emerald-950"><p className="mb-2">{delivery === "email" ? `Invitation email sent to ${formData.email}. Backup link (expires in 7 days):` : delivery === "email_failed" ? `Email delivery failed. Share this invitation link (expires in 7 days):` : `Email is not configured. Share this invitation link (expires in 7 days):`}</p>{deliveryMessage && <p className="mb-2 text-xs text-zinc-700 dark:text-zinc-300">{deliveryMessage}</p>}<div className="flex gap-2"><input ref={inviteLinkInput} readOnly value={inviteUrl} className="min-w-0 flex-1 rounded border bg-white px-2 py-1 text-xs text-zinc-800" onFocus={(event) => event.target.select()} /><button type="button" onClick={copyInviteLink} className="inline-flex shrink-0 items-center gap-1 rounded bg-white px-2 py-1 text-xs font-medium text-zinc-800 ring-1 ring-zinc-300 hover:bg-zinc-100"><Copy size={13} />Copy link</button></div></div>}
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
