@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Mail, UserPlus } from "lucide-react";
+import { useRef, useState } from "react";
+import { Copy, Mail, UserPlus } from "lucide-react";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import { createInvitation } from "../app/api";
@@ -10,6 +10,7 @@ const InviteMemberDialog = ({ isDialogOpen, setIsDialogOpen }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [inviteUrl, setInviteUrl] = useState("");
     const [delivery, setDelivery] = useState("");
+    const inviteLinkInput = useRef(null);
     const [formData, setFormData] = useState({
         email: "",
         role: "org:member",
@@ -44,6 +45,17 @@ const InviteMemberDialog = ({ isDialogOpen, setIsDialogOpen }) => {
         }
     };
 
+    const copyInviteLink = async () => {
+        try {
+            await navigator.clipboard.writeText(inviteUrl);
+            toast.success("Invitation link copied");
+        } catch {
+            inviteLinkInput.current?.focus();
+            inviteLinkInput.current?.select();
+            toast("Link selected. Press Ctrl+C to copy it.");
+        }
+    };
+
     if (!isDialogOpen) return null;
 
     return (
@@ -61,7 +73,7 @@ const InviteMemberDialog = ({ isDialogOpen, setIsDialogOpen }) => {
                     )}
                 </div>
 
-                {inviteUrl && <div className="mb-4 rounded bg-emerald-50 p-3 text-sm dark:bg-emerald-950"><p className="mb-2">{delivery === "email" ? `Invitation email sent to ${formData.email}. Backup link (expires in 7 days):` : delivery === "email_failed" ? `Email delivery failed. Share this invitation link (expires in 7 days):` : `Email is not configured. Share this invitation link (expires in 7 days):`}</p><input readOnly value={inviteUrl} className="w-full rounded border bg-white px-2 py-1 text-xs text-zinc-800" onFocus={(event) => event.target.select()} /></div>}
+                {inviteUrl && <div className="mb-4 rounded bg-emerald-50 p-3 text-sm dark:bg-emerald-950"><p className="mb-2">{delivery === "email" ? `Invitation email sent to ${formData.email}. Backup link (expires in 7 days):` : delivery === "email_failed" ? `Email delivery failed. Share this invitation link (expires in 7 days):` : `Email is not configured. Share this invitation link (expires in 7 days):`}</p><div className="flex gap-2"><input ref={inviteLinkInput} readOnly value={inviteUrl} className="min-w-0 flex-1 rounded border bg-white px-2 py-1 text-xs text-zinc-800" onFocus={(event) => event.target.select()} /><button type="button" onClick={copyInviteLink} className="inline-flex shrink-0 items-center gap-1 rounded bg-white px-2 py-1 text-xs font-medium text-zinc-800 ring-1 ring-zinc-300 hover:bg-zinc-100"><Copy size={13} />Copy link</button></div></div>}
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
