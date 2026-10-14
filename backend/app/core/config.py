@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     smtp_use_ssl: bool = False
     smtp_starttls: bool = True
     smtp_timeout_seconds: int = 15
+    resend_api_key: str | None = None
+    email_from: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=BACKEND_ROOT / ".env",
@@ -44,6 +46,10 @@ class Settings(BaseSettings):
     @property
     def smtp_configured(self) -> bool:
         return all((self.smtp_host, self.smtp_username, self.smtp_password, self.smtp_from_email))
+
+    @property
+    def email_configured(self) -> bool:
+        return bool((self.resend_api_key and self.email_from) or self.smtp_configured)
 
 
 @lru_cache
