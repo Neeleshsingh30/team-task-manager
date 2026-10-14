@@ -42,6 +42,53 @@ Database credentials belong in `backend/.env`, which is ignored by Git. Use
 `backend/.env.example` as a template. Never put database credentials in Vite
 variables or commit a real `.env` file.
 
+## Migrate PostgreSQL to Supabase
+
+The migration helper restores the `public` schema and data into an **empty**
+Supabase database. Back up both databases first. For a live PostgreSQL source,
+install `pg_dump` and `pg_restore` and ensure they are available on `PATH`.
+
+Add these values to `backend/.env` (the file is ignored by Git):
+
+```dotenv
+SOURCE_DATABASE_URL=postgresql://USER:PASSWORD@SOURCE_HOST:5432/DATABASE
+SUPABASE_DATABASE_URL=postgresql://USER:PASSWORD@SUPABASE_HOST:5432/postgres?sslmode=require
+```
+
+For an existing custom-format backup, set `BACKUP_FILE` to its path; the
+`SOURCE_DATABASE_URL` and `PG_DUMP_PATH` variables are then not needed. To copy
+from a live PostgreSQL source instead, leave `BACKUP_FILE` blank and provide
+`SOURCE_DATABASE_URL`; `PG_DUMP_PATH` is optional when `pg_dump` is on `PATH`.
+`PG_RESTORE_PATH` is optional when `pg_restore` is on `PATH`. Use the Supabase
+**Session Pooler** URL if the direct database connection is unavailable from
+your network. URL-encode special characters in passwords. The script also
+accepts the project's `postgresql+psycopg://` URL format.
+
+For example, on Windows, quote paths containing spaces in `backend/.env`:
+
+```dotenv
+BACKUP_FILE="C:/Users/your-name/Documents/custom.backup"
+PG_RESTORE_PATH="C:/Program Files/PostgreSQL/18/bin/pg_restore.exe"
+```
+
+Use forward slashes in Windows paths in `.env`; backslashes can be interpreted
+as escape sequences while the file is loaded.
+
+From the repository root, run:
+
+```bash
+python -m pip install -r backend/requirements.txt
+python backend/scripts/migrate_to_supabase.py
+```
+
+Review the destination and type `MIGRATE` when prompted. The helper refuses to
+restore if it finds tables, views, or sequences in Supabase's `public` schema;
+use a fresh Supabase project rather than overwriting existing data. After
+checking the migrated schema and data, set `DATABASE_URL` in `backend/.env` to
+the Supabase URL so the application uses the new database. The migration helper
+prompts for the Supabase database password without displaying it, so password
+characters do not need to be escaped in the URL.
+
 ## Accounts and workspace roles
 
 Use the sign-in screen to register a new account. To activate an existing
