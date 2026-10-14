@@ -5,7 +5,7 @@ import { Outlet } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { loadTheme } from '../features/themeSlice'
 import { Loader2Icon } from 'lucide-react'
-import { getAccessToken, getWorkspaces } from '../app/api'
+import { API_BASE_URL, getAccessToken, getWorkspaces } from '../app/api'
 import { setWorkspaces } from '../features/workspaceSlice'
 
 const Layout = () => {
@@ -27,7 +27,7 @@ const Layout = () => {
         let retryDelay = 1000
         const connect = () => {
             if (stopped) return
-            const apiBase = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api').replace(/\/api\/?$/, '')
+            const apiBase = API_BASE_URL.replace(/\/api\/?$/, '')
             const wsBase = apiBase.replace(/^http/, 'ws')
             socket = new WebSocket(`${wsBase}/api/ws/workspaces/${encodeURIComponent(currentWorkspaceId)}`, ['bearer', getAccessToken() || ''])
             socket.onopen = () => { retryDelay = 1000 }
