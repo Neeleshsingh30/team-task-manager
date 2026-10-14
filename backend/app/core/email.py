@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import html
+import json
 import smtplib
 import ssl
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 from email.message import EmailMessage
 from email.utils import formataddr
 from urllib.parse import quote
@@ -12,8 +15,9 @@ from urllib.parse import quote
 from app.core.config import Settings
 
 
-def invitation_url(settings: Settings, token: str) -> str:
-    return f"{settings.frontend_base_url.rstrip('/')}/?invite={quote(token, safe='')}"
+def invitation_url(settings: Settings, token: str, frontend_base_url: str | None = None) -> str:
+    base_url = frontend_base_url or settings.frontend_base_url
+    return f"{base_url.rstrip('/')}/?invite={quote(token, safe='')}"
 
 
 def send_invitation_email(
@@ -23,28 +27,58 @@ def send_invitation_email(
     role: str,
     url: str,
 ) -> None:
-    if not settings.smtp_configured:
-        raise RuntimeError("SMTP email settings are incomplete")
-
     safe_workspace = html.escape(workspace_name)
     safe_role = html.escape(role.lower())
     safe_url = html.escape(url, quote=True)
-    message = EmailMessage()
-    message["Subject"] = f"You're invited to join {workspace_name}"
-    message["From"] = formataddr((settings.smtp_from_name, settings.smtp_from_email))
-    message["To"] = recipient
-    message.set_content(
+    text_content = (
         f"You have been invited to join {workspace_name} as a {role.lower()}.\n\n"
         f"Accept the invitation within 7 days: {url}\n"
     )
-    message.add_alternative(
+    html_content = (
         "<html><body>"
         f"<p>You have been invited to join <strong>{safe_workspace}</strong> as a {safe_role}.</p>"
         f'<p><a href="{safe_url}">Accept invitation</a></p>'
         "<p>This invitation expires in 7 days.</p>"
-        "</body></html>",
-        subtype="html",
+        "</body></html>"
     )
+
+    if settings.resend_api_key and settings.email_from:
+        payload = json.dumps({
+            "from": settings.email_from,
+            "to": [recipient],
+            "subject": f"You're invited to join {workspace_name}",
+            "text": text_content,
+            "html": html_content,
+        }).encode("utf-8")
+        request = Request(
+            "https://api.resend.com/emails",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {settings.resend_api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=settings.smtp_timeout_seconds) as response:
+                if response.status >= 300:
+                    raise RuntimeError(f"Email provider returned HTTP {response.status}")
+            return
+        except HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")[:500]
+            raise RuntimeError(f"Email provider rejected the message: {detail}") from exc
+        except URLError as exc:
+            raise RuntimeError(f"Could not reach the email provider: {exc.reason}") from exc
+
+    if not settings.smtp_configured:
+        raise RuntimeError("Email settings are incomplete")
+
+    message = EmailMessage()
+    message["Subject"] = f"You're invited to join {workspace_name}"
+    message["From"] = formataddr((settings.smtp_from_name, settings.smtp_from_email))
+    message["To"] = recipient
+    message.set_content(text_content)
+    message.add_alternative(html_content, subtype="html")
 
     if settings.smtp_use_ssl:
         smtp = smtplib.SMTP_SSL(
