@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -50,7 +50,14 @@ def _values(table_name: str, payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _json_value(value: Any) -> Any:
-    if isinstance(value, (datetime, date)):
+    if isinstance(value, datetime):
+        # Database timestamps written by this app are UTC, but legacy columns
+        # may return naive values. Mark them as UTC so browsers convert them
+        # to the viewer's local timezone instead of treating them as local.
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.isoformat()
+    if isinstance(value, date):
         return value.isoformat()
     if isinstance(value, uuid.UUID):
         return str(value)

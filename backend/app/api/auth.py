@@ -169,6 +169,14 @@ def _user_image_column(users: Table) -> str | None:
     return None
 
 
+def _utc_isoformat(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.isoformat()
+
+
 def current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     db: Session = Depends(get_db),
@@ -397,7 +405,7 @@ def list_notifications(user: Any = Depends(current_user), db: Session = Depends(
         "title": row._mapping.get("title") or "Notification",
         "message": row._mapping.get("message") or "",
         "isRead": bool(row._mapping.get("is_read")),
-        "createdAt": row._mapping["created_at"].isoformat() if row._mapping.get("created_at") else None,
+        "createdAt": _utc_isoformat(row._mapping.get("created_at")),
     } for row in rows]
 
 
