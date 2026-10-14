@@ -1,6 +1,11 @@
 import { setAuthenticatedUser, setCurrentUser, setWorkspaces } from "../features/workspaceSlice";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+// Vite replaces VITE_API_URL at build time. Keep local development convenient,
+// while ensuring a deployed frontend never tries to call the visitor's localhost.
+const DEFAULT_API_BASE_URL = typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+    ? "https://team-task-manager-backend-abm7.onrender.com/api"
+    : "http://127.0.0.1:8000/api";
+export const API_BASE_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_BASE_URL).replace(/\/$/, "");
 let bootstrapPromise = Promise.resolve();
 const TOKEN_KEY = "ttm_access_token";
 
@@ -26,7 +31,7 @@ export async function apiRequest(path, options = {}) {
         if (error.name === "AbortError") {
             throw new Error("The API request timed out after 20 seconds. Check that the backend and database are running, then retry.");
         }
-        throw new Error("Could not reach the API. Check that the backend is running at http://127.0.0.1:8000.");
+        throw new Error(`Could not reach the API at ${API_BASE_URL}. Check the backend service and its CORS settings.`);
     } finally {
         window.clearTimeout(timeout);
     }
