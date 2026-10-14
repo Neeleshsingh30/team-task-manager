@@ -1,18 +1,12 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { dummyWorkspaces } from "../assets/assets";
 
-const readSavedWorkspaces = () => {
-    if (typeof window === "undefined") return null;
+if (typeof window !== "undefined") {
     try {
-        const saved = JSON.parse(window.localStorage.getItem("workspaces"));
-        return Array.isArray(saved) ? saved : null;
+        window.localStorage.removeItem("workspaces");
     } catch {
-        return null;
+        // The app reads workspace data from the backend, not browser storage.
     }
-};
-
-const savedWorkspaces = readSavedWorkspaces();
-const initialWorkspaces = savedWorkspaces?.length ? savedWorkspaces : dummyWorkspaces;
+}
 const readSavedWorkspaceId = () => {
     if (typeof window === "undefined") return null;
     try {
@@ -22,19 +16,10 @@ const readSavedWorkspaceId = () => {
     }
 };
 const savedWorkspaceId = readSavedWorkspaceId();
-const readSavedUserId = () => {
-    if (typeof window === "undefined") return null;
-    try {
-        return window.localStorage.getItem("currentUserId");
-    } catch {
-        return null;
-    }
-};
-
 const initialState = {
-    workspaces: initialWorkspaces,
-    currentWorkspace: initialWorkspaces.find((workspace) => workspace.id === savedWorkspaceId) || initialWorkspaces[1] || initialWorkspaces[0] || null,
-    currentUserId: readSavedUserId(),
+    workspaces: [],
+    currentWorkspace: null,
+    currentUserId: null,
     authenticatedUser: null,
     loading: false,
 };
