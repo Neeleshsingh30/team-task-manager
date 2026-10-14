@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     smtp_timeout_seconds: int = 15
     resend_api_key: str | None = None
     email_from: str | None = None
+    gmail_client_id: str | None = None
+    gmail_client_secret: str | None = None
+    gmail_refresh_token: str | None = None
+    gmail_sender_email: str | None = None
+    allow_render_smtp: bool = False
+    render: bool = False
 
     model_config = SettingsConfigDict(
         env_file=BACKEND_ROOT / ".env",
@@ -48,8 +54,20 @@ class Settings(BaseSettings):
         return all((self.smtp_host, self.smtp_username, self.smtp_password, self.smtp_from_email))
 
     @property
+    def resend_configured(self) -> bool:
+        return bool(self.resend_api_key and self.email_from)
+
+    @property
+    def gmail_configured(self) -> bool:
+        return all((self.gmail_client_id, self.gmail_client_secret, self.gmail_refresh_token, self.gmail_sender_email))
+
+    @property
     def email_configured(self) -> bool:
-        return bool((self.resend_api_key and self.email_from) or self.smtp_configured)
+        # Render Free blocks outbound SMTP ports. Use Resend's HTTPS API there;
+        # Gmail's HTTPS API also works without a custom sending domain.
+        if self.render:
+            return self.resend_configured or self.gmail_configured or (self.allow_render_smtp and self.smtp_configured)
+        return self.resend_configured or self.gmail_configured or self.smtp_configured
 
 
 @lru_cache
