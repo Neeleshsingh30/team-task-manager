@@ -468,13 +468,18 @@ def create_invitation(workspace_id: str, payload: dict[str, Any], request: Reque
         frontend_base_url = request_origin
     url = invitation_url(settings, token, frontend_base_url)
     delivery = "copy_link"
+    delivery_error = None
+    delivery_hint = None
+    if settings.render and not settings.email_configured:
+        delivery_hint = "Configure Gmail API OAuth credentials, Resend, or Gmail SMTP on a paid Render service to send invitations by email."
     if settings.email_configured:
         try:
             send_invitation_email(settings, email, str(workspace_name), role, url)
             delivery = "email"
-        except Exception:
+        except Exception as exc:
             logger.exception("Could not deliver workspace invitation email")
             delivery = "email_failed"
+            delivery_error = str(exc)[:300]
     return {
         "email": email,
         "role": role,
@@ -482,6 +487,8 @@ def create_invitation(workspace_id: str, payload: dict[str, Any], request: Reque
         "inviteUrl": url,
         "expiresInDays": 7,
         "delivery": delivery,
+        "deliveryError": delivery_error,
+        "deliveryHint": delivery_hint,
     }
 
 
