@@ -437,7 +437,7 @@ def mark_all_notifications_read(user: Any = Depends(current_user), db: Session =
 
 
 @auth_router.post("/workspaces/{workspace_id}/invitations", status_code=status.HTTP_201_CREATED)
-def create_invitation(workspace_id: str, payload: dict[str, Any], user: Any = Depends(current_user), db: Session = Depends(get_db)) -> dict[str, Any]:
+def create_invitation(workspace_id: str, payload: dict[str, Any], request: Request, user: Any = Depends(current_user), db: Session = Depends(get_db)) -> dict[str, Any]:
     workspace_id_parsed = uuid.UUID(workspace_id)
     role = str(payload.get("role") or "MEMBER").upper()
     if role not in {"ADMIN", "MEMBER"}:
@@ -462,9 +462,13 @@ def create_invitation(workspace_id: str, payload: dict[str, Any], user: Any = De
         _create_notification(db, invited_account._mapping["id"], "Workspace invitation", f"You were invited to join {workspace_name} as a {role.lower()}.")
     db.commit()
     settings = get_settings()
-    url = invitation_url(settings, token)
+    frontend_base_url = settings.frontend_base_url
+    request_origin = request.headers.get("origin", "").rstrip("/")
+    if frontend_base_url.rstrip("/") in {"http://localhost:5173", "http://127.0.0.1:5173"} and request_origin in settings.allowed_origins:
+        frontend_base_url = request_origin
+    url = invitation_url(settings, token, frontend_base_url)
     delivery = "copy_link"
-    if settings.smtp_configured:
+    if settings.email_configured:
         try:
             send_invitation_email(settings, email, str(workspace_name), role, url)
             delivery = "email"
