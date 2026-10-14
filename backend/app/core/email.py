@@ -1,11 +1,13 @@
-"""SMTP delivery for workspace invitations."""
+"""Email delivery for workspace invitations via Resend or SMTP."""
 
 from __future__ import annotations
 
 import html
+import base64
 import json
 import smtplib
 import ssl
+from urllib.parse import urlencode
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from email.message import EmailMessage
@@ -41,6 +43,54 @@ def send_invitation_email(
         "<p>This invitation expires in 7 days.</p>"
         "</body></html>"
     )
+
+    if settings.gmail_configured:
+        token_request = Request(
+            "https://oauth2.googleapis.com/token",
+            data=urlencode({
+                "client_id": settings.gmail_client_id,
+                "client_secret": settings.gmail_client_secret,
+                "refresh_token": settings.gmail_refresh_token,
+                "grant_type": "refresh_token",
+            }).encode("utf-8"),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            method="POST",
+        )
+        try:
+            with urlopen(token_request, timeout=settings.smtp_timeout_seconds) as response:
+                access_token = json.loads(response.read().decode("utf-8"))["access_token"]
+        except HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")[:300]
+            raise RuntimeError(f"Gmail OAuth token request failed: {detail}") from exc
+        except (URLError, KeyError, ValueError) as exc:
+            raise RuntimeError(f"Could not authorize Gmail email delivery: {exc}") from exc
+
+        message = EmailMessage()
+        message["Subject"] = f"You're invited to join {workspace_name}"
+        message["From"] = formataddr((settings.smtp_from_name, settings.gmail_sender_email))
+        message["To"] = recipient
+        message.set_content(text_content)
+        message.add_alternative(html_content, subtype="html")
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode("ascii").rstrip("=")
+        send_request = Request(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+            data=json.dumps({"raw": raw_message}).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        try:
+            with urlopen(send_request, timeout=settings.smtp_timeout_seconds) as response:
+                if response.status >= 300:
+                    raise RuntimeError(f"Gmail API returned HTTP {response.status}")
+            return
+        except HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")[:300]
+            raise RuntimeError(f"Gmail API rejected the message: {detail}") from exc
+        except URLError as exc:
+            raise RuntimeError(f"Could not reach Gmail API: {exc.reason}") from exc
 
     if settings.resend_api_key and settings.email_from:
         payload = json.dumps({
