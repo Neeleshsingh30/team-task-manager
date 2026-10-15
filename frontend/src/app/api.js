@@ -15,12 +15,14 @@ export const clearAccessToken = () => window.localStorage.removeItem(TOKEN_KEY);
 
 export async function apiRequest(path, options = {}) {
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 20000);
+    const timeout = window.setTimeout(() => controller.abort(), 60000);
+    const abortFromCaller = () => controller.abort(options.signal?.reason);
+    options.signal?.addEventListener("abort", abortFromCaller, { once: true });
     let response;
     try {
         response = await fetch(`${API_BASE_URL}${path}`, {
             ...options,
-            signal: options.signal || controller.signal,
+            signal: controller.signal,
             headers: {
                 ...(options.body ? { "Content-Type": "application/json" } : {}),
                 ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
@@ -29,11 +31,12 @@ export async function apiRequest(path, options = {}) {
         });
     } catch (error) {
         if (error.name === "AbortError") {
-            throw new Error("The API request timed out after 20 seconds. Check that the backend and database are running, then retry.");
+            throw new Error("The API request timed out after 60 seconds. The backend or database may be unavailable; retry when the service is running.");
         }
         throw new Error(`Could not reach the API at ${API_BASE_URL}. Check the backend service and its CORS settings.`);
     } finally {
         window.clearTimeout(timeout);
+        options.signal?.removeEventListener("abort", abortFromCaller);
     }
 
     if (response.status === 204) return null;
