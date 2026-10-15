@@ -26,7 +26,7 @@ const InviteMemberDialog = ({ isDialogOpen, setIsDialogOpen }) => {
         setDeliveryMessage("");
         try {
             const invite = await createInvitation(currentWorkspace.id, email, formData.role === "org:admin" ? "ADMIN" : "MEMBER");
-            const link = invite.inviteUrl || `${window.location.origin}/?invite=${encodeURIComponent(invite.inviteToken)}`;
+            const link = invite.inviteUrl || `${window.location.origin}/#/?invite=${encodeURIComponent(invite.inviteToken)}`;
             setInviteUrl(link);
             setDelivery(invite.delivery);
             setDeliveryMessage(invite.deliveryError || invite.deliveryHint || "");
