@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CalendarIcon, MessageCircle, PenIcon } from "lucide-react";
 import { getTaskComments, postTaskComment } from "../app/api";
-import { selectCurrentUser, setTaskComments } from "../features/workspaceSlice";
+import { selectCurrentRole, selectCurrentUser, setTaskComments, updateTask } from "../features/workspaceSlice";
 import Avatar from "../components/Avatar";
 
 const TaskDetails = () => {
@@ -15,6 +15,7 @@ const TaskDetails = () => {
     const taskId = searchParams.get("taskId");
 
     const user = useSelector(selectCurrentUser);
+    const isAdmin = useSelector(selectCurrentRole) === "ADMIN";
     const dispatch = useDispatch();
     const [task, setTask] = useState(null);
     const [project, setProject] = useState(null);
@@ -80,6 +81,25 @@ const TaskDetails = () => {
             toast.dismissAll();
             toast.error(error.message || "Could not add comment");
         }
+    };
+
+    const handleDueDateChange = (event) => {
+        const dueDate = event.target.value;
+        if (!dueDate || !task || !isAdmin) return;
+        const reopen = task.status === "DONE"
+            ? window.confirm("This task is Done. Extend the due date and reopen it as In Progress?")
+            : false;
+        if (task.status === "DONE" && !reopen) return;
+        const updatedTask = {
+            ...task,
+            due_date: dueDate,
+            ...(reopen && { status: "IN_PROGRESS" }),
+            updatedAt: new Date().toISOString(),
+            updatedBy: user ? { id: user.id, name: user.name, email: user.email } : null,
+        };
+        setTask(updatedTask);
+        dispatch(updateTask(updatedTask));
+        toast.success("Task due date updated");
     };
 
     useEffect(() => { fetchTaskDetails(); }, [fetchTaskDetails]);
@@ -173,7 +193,13 @@ const TaskDetails = () => {
                         </div>
                         <div className="flex items-center gap-2">
                             <CalendarIcon className="size-4 text-gray-500 dark:text-zinc-500" />
-                            Due : {format(new Date(task.due_date), "dd MMM yyyy")}
+                            Due : {isAdmin ? <input
+                                type="date"
+                                aria-label={`Due date for ${task.title}`}
+                                value={task.due_date?.slice(0, 10) || ""}
+                                onChange={handleDueDateChange}
+                                className="rounded border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-700"
+                            /> : format(new Date(task.due_date), "dd MMM yyyy")}
                         </div>
                     </div>
                 </div>

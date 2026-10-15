@@ -769,8 +769,14 @@ def update_task(task_id: str, payload: dict[str, Any], user: Any = Depends(curre
         _table("workspace_members").c.workspace_id == project_row._mapping["workspace_id"],
         _table("workspace_members").c.user_id == user._mapping["id"],
     )).first()
-    is_admin = bool(membership and str(membership._mapping.get("role", "")).upper() == "ADMIN")
+    workspace_row = _get_or_404(db, "workspaces", str(project_row._mapping["workspace_id"]))
+    is_admin = bool(
+        (membership and str(membership._mapping.get("role", "")).upper() == "ADMIN")
+        or workspace_row._mapping["owner_id"] == user._mapping["id"]
+    )
     if not is_admin and project_row._mapping["workspace_id"]:
+        if "due_date" in payload and _date_value(payload.get("due_date")) != task_row._mapping.get("due_date"):
+            raise HTTPException(status_code=403, detail="Only workspace admins can change task due dates")
         payload = {key: value for key, value in payload.items() if key not in {"assigneeId", "assignee_id", "assignee", "assignedBy", "createdBy", "updatedBy", "projectId", "project_id"}}
     task = _update(db, "tasks", task_id, payload)
     task_row = _get_or_404(db, "tasks", task["id"])

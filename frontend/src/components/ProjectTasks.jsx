@@ -83,6 +83,18 @@ const ProjectTasks = ({ tasks, projectMembers = [] }) => {
 
     const handleStatusChange = (taskId, newStatus) => updateTaskField(taskId, { status: newStatus });
 
+    const handleDueDateChange = (taskId, dueDate) => {
+        if (!dueDate) return;
+        const task = tasks.find((item) => item.id === taskId);
+        const changes = { due_date: dueDate };
+        if (task?.status === "DONE") {
+            const reopen = window.confirm("This task is Done. Extend the due date and reopen it as In Progress?");
+            if (!reopen) return;
+            changes.status = "IN_PROGRESS";
+        }
+        updateTaskField(taskId, changes);
+    };
+
     const handleDelete = async () => {
         try {
             const confirm = window.confirm("Are you sure you want to delete the selected tasks?");
@@ -212,10 +224,16 @@ const ProjectTasks = ({ tasks, projectMembers = [] }) => {
                                                         {projectMembers.map(({ user }) => <option key={user.id} value={user.id}>{user.name || user.email}</option>)}
                                                     </select> : <span>{task.assignee?.name || task.assignee?.email || "Unassigned"}</span>}
                                                 </td>
-                                                <td className="px-4 py-2">
+                                                <td onClick={(event) => event.stopPropagation()} className="px-4 py-2">
                                                     <div className="flex items-center gap-1 text-zinc-600 dark:text-zinc-400">
                                                         <CalendarIcon className="size-4" />
-                                                        {format(new Date(task.due_date), "dd MMMM")}
+                                                        {isAdmin ? <input
+                                                            type="date"
+                                                            aria-label={`Due date for ${task.title}`}
+                                                            value={task.due_date?.slice(0, 10) || ""}
+                                                            onChange={(event) => handleDueDateChange(task.id, event.target.value)}
+                                                            className="max-w-36 rounded border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-700"
+                                                        /> : format(new Date(task.due_date), "dd MMMM")}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -276,7 +294,13 @@ const ProjectTasks = ({ tasks, projectMembers = [] }) => {
 
                                         <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
                                             <CalendarIcon className="size-4" />
-                                            {format(new Date(task.due_date), "dd MMMM")}
+                                            {isAdmin ? <input
+                                                type="date"
+                                                aria-label={`Due date for ${task.title}`}
+                                                value={task.due_date?.slice(0, 10) || ""}
+                                                onChange={(event) => handleDueDateChange(task.id, event.target.value)}
+                                                className="rounded border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-700"
+                                            /> : format(new Date(task.due_date), "dd MMMM")}
                                         </div>
                                     </div>
                                 );
