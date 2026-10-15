@@ -22,6 +22,11 @@ def invitation_url(settings: Settings, token: str, frontend_base_url: str | None
     return f"{base_url.rstrip('/')}/#/?invite={quote(token, safe='')}"
 
 
+def password_reset_url(settings: Settings, token: str, frontend_base_url: str | None = None) -> str:
+    base_url = frontend_base_url or settings.frontend_base_url
+    return f"{base_url.rstrip('/')}/#/?reset={quote(token, safe='')}"
+
+
 def send_invitation_email(
     settings: Settings,
     recipient: str,
@@ -43,6 +48,26 @@ def send_invitation_email(
         "<p>This invitation expires in 7 days.</p>"
         "</body></html>"
     )
+    send_email(settings, recipient, f"You're invited to join {workspace_name}", text_content, html_content)
+
+
+def send_password_reset_email(settings: Settings, recipient: str, url: str) -> None:
+    safe_url = html.escape(url, quote=True)
+    text_content = (
+        "We received a request to reset your Team Task Manager password.\n\n"
+        f"Set a new password within 30 minutes: {url}\n\n"
+        "If you did not request this, you can ignore this email."
+    )
+    html_content = (
+        "<html><body><p>We received a request to reset your Team Task Manager password.</p>"
+        f'<p><a href="{safe_url}">Set a new password</a></p>'
+        "<p>This link expires in 30 minutes. If you did not request this, ignore this email.</p>"
+        "</body></html>"
+    )
+    send_email(settings, recipient, "Reset your Team Task Manager password", text_content, html_content)
+
+
+def send_email(settings: Settings, recipient: str, subject: str, text_content: str, html_content: str) -> None:
 
     if settings.gmail_configured:
         token_request = Request(
@@ -66,7 +91,7 @@ def send_invitation_email(
             raise RuntimeError(f"Could not authorize Gmail email delivery: {exc}") from exc
 
         message = EmailMessage()
-        message["Subject"] = f"You're invited to join {workspace_name}"
+        message["Subject"] = subject
         message["From"] = formataddr((settings.smtp_from_name, settings.gmail_sender_email))
         message["To"] = recipient
         message.set_content(text_content)
@@ -96,7 +121,7 @@ def send_invitation_email(
         payload = json.dumps({
             "from": settings.email_from,
             "to": [recipient],
-            "subject": f"You're invited to join {workspace_name}",
+            "subject": subject,
             "text": text_content,
             "html": html_content,
         }).encode("utf-8")
@@ -124,7 +149,7 @@ def send_invitation_email(
         raise RuntimeError("Email settings are incomplete")
 
     message = EmailMessage()
-    message["Subject"] = f"You're invited to join {workspace_name}"
+    message["Subject"] = subject
     message["From"] = formataddr((settings.smtp_from_name, settings.smtp_from_email))
     message["To"] = recipient
     message.set_content(text_content)
