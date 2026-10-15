@@ -19,7 +19,7 @@ from app.core.config import Settings
 
 def invitation_url(settings: Settings, token: str, frontend_base_url: str | None = None) -> str:
     base_url = frontend_base_url or settings.frontend_base_url
-    return f"{base_url.rstrip('/')}/?invite={quote(token, safe='')}"
+    return f"{base_url.rstrip('/')}/#/?invite={quote(token, safe='')}"
 
 
 def send_invitation_email(
