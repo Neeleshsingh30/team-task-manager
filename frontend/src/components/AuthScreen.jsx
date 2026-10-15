@@ -3,7 +3,8 @@ import toast from "react-hot-toast";
 import { acceptInvitation, login, register, setAccessToken } from "../app/api";
 
 export default function AuthScreen({ onAuthenticated }) {
-    const inviteToken = new URLSearchParams(window.location.search).get("invite");
+    const inviteParams = new URLSearchParams(window.location.hash.split("?")[1] || window.location.search);
+    const inviteToken = inviteParams.get("invite");
     const [mode, setMode] = useState(inviteToken ? "register" : "login");
     const [form, setForm] = useState({ name: "", email: "", password: "" });
     const [busy, setBusy] = useState(false);
