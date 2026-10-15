@@ -14,11 +14,11 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Index, MetaData, String, Table, Uuid, and_, func, insert, select, update
+from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Index, MetaData, String, Table, Uuid, and_, delete, func, insert, select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.email import invitation_url, send_invitation_email
+from app.core.email import invitation_url, password_reset_url, send_invitation_email, send_password_reset_email
 from app.db.session import SessionLocal, engine, get_db
 
 
@@ -40,7 +40,17 @@ invitations = Table(
     extend_existing=True,
 )
 Index("ix_workspace_invitations_workspace_email", invitations.c.workspace_id, invitations.c.email)
-metadata.create_all(engine, tables=[invitations], checkfirst=True)
+password_reset_tokens = Table(
+    "password_reset_tokens", metadata,
+    Column("id", Uuid(as_uuid=True), primary_key=True),
+    Column("user_id", Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("token_hash", String(64), nullable=False, unique=True),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    extend_existing=True,
+)
+Index("ix_password_reset_tokens_user_id", password_reset_tokens.c.user_id)
+metadata.create_all(engine, tables=[invitations, password_reset_tokens], checkfirst=True)
 
 bearer = HTTPBearer(auto_error=False)
 realtime_router = APIRouter(tags=["workspace events"])
@@ -314,6 +324,77 @@ def login(payload: dict[str, Any], db: Session = Depends(get_db)) -> dict[str, A
     if not user or not _password_matches(password, str(user._mapping.get("password_hash") or "")):
         raise HTTPException(status_code=401, detail="Email or password is incorrect")
     return {"accessToken": _token_for(user._mapping["id"]), "tokenType": "bearer", "user": _public_user(user)}
+
+
+@auth_router.post("/password/forgot")
+def request_password_reset(payload: dict[str, Any], request: Request, db: Session = Depends(get_db)) -> dict[str, str]:
+    email = str(payload.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=422, detail="Enter a valid email address")
+    settings = get_settings()
+    if not settings.email_configured:
+        raise HTTPException(status_code=503, detail="Password reset email is not configured on the server")
+
+    user = db.execute(select(tables["users"]).where(func.lower(tables["users"].c.email) == email)).first()
+    generic_message = "If an account exists for that email, password reset instructions have been sent."
+    if user is None:
+        return {"status": "ok", "message": generic_message}
+
+    token = secrets.token_urlsafe(32)
+    now = datetime.now(timezone.utc)
+    recent_request = db.execute(select(password_reset_tokens.c.id).where(
+        password_reset_tokens.c.user_id == user._mapping["id"],
+        password_reset_tokens.c.created_at >= now - timedelta(minutes=1),
+    )).first()
+    if recent_request:
+        return {"status": "ok", "message": generic_message}
+    db.execute(delete(password_reset_tokens).where(password_reset_tokens.c.user_id == user._mapping["id"]))
+    db.execute(insert(password_reset_tokens).values(
+        id=uuid.uuid4(),
+        user_id=user._mapping["id"],
+        token_hash=hashlib.sha256(token.encode()).hexdigest(),
+        expires_at=now + timedelta(minutes=30),
+    ))
+    db.commit()
+
+    frontend_base_url = settings.frontend_base_url
+    request_origin = request.headers.get("origin", "").rstrip("/")
+    if frontend_base_url.rstrip("/") in {"http://localhost:5173", "http://127.0.0.1:5173"} and request_origin in settings.allowed_origins:
+        frontend_base_url = request_origin
+    url = password_reset_url(settings, token, frontend_base_url)
+    try:
+        send_password_reset_email(settings, email, url)
+    except Exception as exc:
+        logger.exception("Could not deliver password reset email")
+        db.execute(delete(password_reset_tokens).where(password_reset_tokens.c.user_id == user._mapping["id"]))
+        db.commit()
+        raise HTTPException(status_code=503, detail="Could not send password reset email. Check server email settings and retry.") from exc
+    return {"status": "ok", "message": generic_message}
+
+
+@auth_router.post("/password/reset")
+def reset_password(payload: dict[str, Any], db: Session = Depends(get_db)) -> dict[str, str]:
+    token = str(payload.get("token") or "")
+    new_password = str(payload.get("password") or "")
+    if len(new_password) < 10:
+        raise HTTPException(status_code=422, detail="New password must be at least 10 characters")
+    if not token:
+        raise HTTPException(status_code=400, detail="Password reset link is invalid or expired")
+
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    reset_row = db.execute(select(password_reset_tokens).where(password_reset_tokens.c.token_hash == token_hash)).first()
+    now = datetime.now(timezone.utc)
+    if not reset_row or reset_row._mapping["expires_at"] <= now:
+        raise HTTPException(status_code=400, detail="Password reset link is invalid or expired")
+
+    user_id = reset_row._mapping["user_id"]
+    values: dict[str, Any] = {"password_hash": _password_hash(new_password)}
+    if "updated_at" in tables["users"].c:
+        values["updated_at"] = now.replace(tzinfo=None)
+    db.execute(update(tables["users"]).where(tables["users"].c.id == user_id).values(**values))
+    db.execute(delete(password_reset_tokens).where(password_reset_tokens.c.user_id == user_id))
+    db.commit()
+    return {"status": "ok", "message": "Password reset successfully. Sign in with your new password."}
 
 
 @auth_router.get("/me")
