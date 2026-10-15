@@ -106,11 +106,14 @@ tasks assigned to their account. The API checks membership and role on every
 request, regardless of the controls shown in the UI.
 
 Admins send seven-day invitations from **Team → Invite Member**. To deliver
-them by email, set the `SMTP_*` values and `FRONTEND_BASE_URL` in `backend/.env`;
-see `backend/.env.example` for the complete list. The sender address must be
-authorized by the SMTP provider. Keep `SMTP_PASSWORD` private (for Gmail, use
-an app password if the account requires one), then restart the backend. If SMTP
-is not configured or delivery fails, the app keeps the invitation valid and
-provides a copyable link as a fallback. Invitees set their name and password
-through the link. Workspace changes notify connected browsers over an
-authenticated WebSocket, which then reloads authorized data from the API.
+them by email on Render Free, configure the Gmail API OAuth variables
+(`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, and
+`GMAIL_SENDER_EMAIL`) plus `FRONTEND_BASE_URL` in the backend service's
+environment. Gmail API sends over HTTPS, so it works with Render's free service
+limits. Alternatively, use Resend with a verified sender domain, or SMTP on a
+paid Render service. See `backend/.env.example` for the complete variable list;
+keep all keys and passwords private. If email is unconfigured or delivery fails,
+the invitation remains valid and the app provides a copyable link. Invitees set
+their name and password through the link. Workspace changes notify connected
+browsers over an authenticated WebSocket, which then reloads authorized data
+from the API.
