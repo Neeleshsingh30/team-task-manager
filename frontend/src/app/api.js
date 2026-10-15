@@ -55,6 +55,12 @@ export const getWorkspaces = () => apiRequest("/workspaces");
 export const createWorkspaceRemote = (workspace) => apiRequest("/workspaces", { method: "POST", body: JSON.stringify(workspace) });
 export const login = (email, password) => apiRequest("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
 export const register = (name, email, password) => apiRequest("/auth/register", { method: "POST", body: JSON.stringify({ name, email, password }) });
+export const requestPasswordReset = (email) => apiRequest("/auth/password/forgot", {
+    method: "POST", body: JSON.stringify({ email }),
+});
+export const resetPassword = (token, password) => apiRequest("/auth/password/reset", {
+    method: "POST", body: JSON.stringify({ token, password }),
+});
 export const getCurrentUser = () => apiRequest("/auth/me");
 export const updateProfile = (profile) => apiRequest("/auth/profile", {
     method: "PUT", body: JSON.stringify(profile),
